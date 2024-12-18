@@ -1,0 +1,14 @@
+# File managed by Ansible
+[Unit]
+Description=minikube dashboard
+After=minikube.service
+
+[Service]
+ExecStart=minikube dashboard --port 12345 --url http:\\bestanie
+RemainAfterExit=no
+Restart=always
+User=kube
+Group=kube
+
+[Install]
+WantedBy=multi-user.target

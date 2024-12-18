@@ -1,0 +1,246 @@
+---
+- name: Ensure Almalinux 9 host serves minikube
+  hosts: minikube
+  become: true
+  vars:
+    _ansible_os_family: 'RedHat'
+    _ansible_distribution_major_version: 9
+    minikube_user: kube
+    minikube_group: kube
+  tasks:
+
+    #
+    # https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/
+    # kubectl
+    #
+
+    - name: Check target OS
+      ansible.builtin.assert:
+        that:
+          - ansible_os_family ==  _ansible_os_family
+          - ansible_distribution_major_version | int == _ansible_distribution_major_version
+        fail_msg: "Playbook only suitable for OS family {{ _ansible_os_family }} major version {{ _ansible_distribution_major_version }}"
+        success_msg: "Yes, OS is fine"
+
+    - name: Set TZ {{ timezone }}
+      community.general.timezone:
+        name: "{{ timezone }}"
+
+    - name: Kubectl
+      tags: kubectl
+      block:
+        - name: Ensure latest stable kubectl version is registered
+          ansible.builtin.uri:
+            url: https://dl.k8s.io/release/stable.txt
+            return_content: true
+          register: version
+          check_mode: false
+
+        - name: Ensure latest stable kubectl version is shown
+          ansible.builtin.debug:
+            msg: Latest stable version is {{ version.content }}
+
+        - name: Ensure checksum of latest stable minikube version is registered
+          ansible.builtin.uri:
+            url: https://dl.k8s.io/release/{{ version.content }}/bin/linux/amd64/kubectl.sha256
+            return_content: true
+          register: checksum
+          check_mode: false
+
+        - name: Ensure checksum of latest stable kubectl version is shown
+          ansible.builtin.debug:
+            msg: Checksum of kubectl should be {{ checksum.content }}
+
+        - name: Ensure latest stable kubectl is installed and sha256sum is checked
+          ansible.builtin.get_url:
+            url: https://dl.k8s.io/release/{{ version.content }}/bin/linux/amd64/kubectl
+            checksum: "sha256:{{ checksum.content }}"
+            dest: '/usr/local/bin/'
+            owner: 'root'
+            group: 'root'
+            mode: '0755'
+          changed_when: false
+
+    #
+    # minikube
+    #
+
+    - name: Minikube itself
+      tags: minikube
+      block:
+        - name: Ensure latest minikube version is installed
+          ansible.builtin.get_url:
+            url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+            dest: '/usr/local/bin/minikube'
+            owner: 'root'
+            group: 'root'
+            mode: '0755'
+        - name: Ensure unprivileged user to run minikube [{{ minikube_user }}] is present # noqa: name[template]
+          ansible.builtin.user:
+            name: "{{ minikube_user }}"
+        - name: Ensure original shell startup scripts for minikube_user are saved
+          become: true
+          become_user: "{{ minikube_user }}"
+          ansible.builtin.command: "cp -p {{ item }} {{ item }}.bak"
+          args:
+            creates: "{{ item }}.bak"
+          loop:
+            - /home/{{ minikube_user }}/.bashrc
+        - name: Ensure alias k for kubectl is set for user {{ minikube_user }}
+          become: true
+          become_user: "{{ minikube_user }}"
+          ansible.builtin.lineinfile:
+            path: "{{ item }}"
+            line: "alias k='kubectl' # Line managed by Ansible"
+            regexp: "alias k='kubectl'"
+            backup: false
+          loop:
+            - /home/{{ minikube_user }}/.bashrc
+        - name: Ensure bash-completion package is installed
+          ansible.builtin.package:
+            name: bash-completion
+        - name: Ensure kubectl shell completion is active
+          become: true
+          become_user: "{{ minikube_user }}"
+          ansible.builtin.lineinfile:
+            path: /home/{{ minikube_user }}/.bashrc
+            line: "{{ item }} # Line managed by Ansible"
+            backup: false
+          loop:
+            - source <(kubectl completion bash)
+            - complete -o default -F __start_kubectl k
+
+        - name: Ensure alias to quickly login to minikube_user is present
+          become: false
+          ansible.builtin.lineinfile:
+            path: "{{ item }}"
+            line: "alias k='sudo su - {{ minikube_user }}' # Line managed by Ansible"
+            regexp: "alias k='sudo su - {{ minikube_user }}'"
+            backup: true
+          loop:
+            - .bashrc
+        - name: Ensure user kube has elevated privileges
+          ansible.builtin.copy:
+            src: "{{ item }}"
+            dest: /etc/sudoers.d/
+            mode: '0440'
+            validate: visudo -cf %s
+          loop:
+            - "{{ minikube_user }}"
+        - name: Ensure podman is installed
+          ansible.builtin.package:
+            name: podman
+            state: present
+        - name: Ensure system start file is present, custom created running under user [{{ minikube_user }}]
+          ansible.builtin.copy:
+            src: "{{ item }}"
+            dest: /etc/systemd/system/
+            mode: '0644'
+          loop:
+            - minikube.service
+            - dashboard.service
+          notify: Reload daemon
+        - name: Ensure minikube and dashboard are running
+          ansible.builtin.systemd:
+            name: "{{ item }}"
+            state: started
+            enabled: true
+          loop:
+            - minikube.service
+            - dashboard.service
+
+    # als user kube
+    #  minikube start
+    #  minikube dashboard --port 12345
+
+    #
+    # haproxy reverse proxy
+    #
+
+    - name: Haproxy
+      tags: haproxy
+      block:
+        - name: Ensure haproxy is installed to allow access from outside to dashboard, this is not the internal kubernetes proxy
+          ansible.builtin.package:
+            name: haproxy
+            state: present
+        - name: Set httpd_can_network_connect flag on and keep it persistent across reboots
+          ansible.posix.seboolean:
+            name: httpd_can_network_connect
+            state: true
+            persistent: true
+        - name: Ensure haproxy is configured
+          ansible.builtin.template:
+            src: "{{ item }}.j2"
+            dest: /etc/haproxy/conf.d/{{ item }}
+            mode: '0644'
+            backup: true
+          loop:
+            - minikube.cfg
+          notify: Reload haproxy
+        - name: Ensure haproxy is running
+          ansible.builtin.service:
+            name: haproxy
+            state: started
+            enabled: true
+        - name: Set selinux for haproxy
+          ansible.posix.seboolean:
+            name: haproxy_connect_any
+            state: true
+            persistent: true
+
+    #
+    # helpers
+    #
+
+    - name: Ensure extra packages are installed
+      ansible.builtin.package:
+        name:
+          - vim
+          - mlocate
+        state: present
+    - name: Ensure extra scripts directory is present
+      ansible.builtin.file:
+        path: /home/{{ minikube_user }}/bin
+        state: directory
+        owner: "{{ minikube_user }}"
+        group: "{{ minikube_group }}"
+        mode: '0755'
+    - name: Ensure extra scripts are present
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: /home/{{ minikube_user }}/bin/
+        owner: "{{ minikube_user }}"
+        group: "{{ minikube_group }}"
+        mode: '0755'
+      loop:
+        - bin/dashboard
+        - bin/minikube_service
+    - name: Ensure minikube version is registered
+      become: true
+      become_user: "{{ minikube_user }}"
+      ansible.builtin.command: /usr/local/bin/minikube version
+      register: result
+      changed_when: false
+      check_mode: false
+      tags: ver
+    - name: Ensure minikube version is shown
+      ansible.builtin.debug:
+        var: result.stdout_lines
+      tags: ver
+    - name: Show URLs to access minikube
+      ansible.builtin.debug:
+        msg:
+          - URL is http://{{ ansible_host }}:12345/api/v1/namespaces/kubernetes-dashboard/services/http:kubernetes-dashboard:/proxy/
+          - URL is https://minikubedashboard.ark-ict.nl/
+
+  handlers:
+    - name: Reload haproxy
+      ansible.builtin.service:
+        name: haproxy
+        state: reloaded
+      tags: haproxy
+    - name: Reload daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+...

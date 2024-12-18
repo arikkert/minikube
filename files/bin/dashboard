@@ -1,0 +1,10 @@
+#!/bin/bash
+# File managed by Ansible
+
+if systemctl --quiet is-active minikube
+then
+	echo "Dashboard is available when URL is shown after Verifying the proxy health"
+	minikube dashboard --port 12345 --url http:\\bestanie
+else
+	echo "ERROR: service minikube should be active before dashboard is started"
+fi

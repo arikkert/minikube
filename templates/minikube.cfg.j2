@@ -1,0 +1,10 @@
+# File managed with Ansible
+
+frontend minikube_front
+    bind {{ ansible_host }}:12345
+    default_backend             minikube_back
+
+backend minikube_back
+    http-request set-header Host 127.0.0.1
+    server  app1 127.0.0.1:12345
+    mode http
