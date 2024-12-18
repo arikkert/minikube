@@ -232,7 +232,6 @@
       ansible.builtin.debug:
         msg:
           - URL is http://{{ ansible_host }}:12345/api/v1/namespaces/kubernetes-dashboard/services/http:kubernetes-dashboard:/proxy/
-          - URL is https://minikubedashboard.ark-ict.nl/
 
   handlers:
     - name: Reload haproxy
