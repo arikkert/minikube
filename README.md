@@ -40,6 +40,10 @@ The playbooks only refer to the group names and never tot the individual hosts (
     [minikube]
     minikube.mydomain
 
+Other vars
+
+*timezone*  # the timezone on minikube host, e.g. *Europe/Amsterdam*
+
 Testing
 -------
 
