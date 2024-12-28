@@ -164,11 +164,30 @@
           ansible.builtin.package:
             name: haproxy
             state: present
+        - name: Ensure ansible.posix.seboolean pre-req is installed
+          ansible.builtin.package:
+            name: python3-libsemanage
+            state: present
         - name: Set httpd_can_network_connect flag on and keep it persistent across reboots
           ansible.posix.seboolean:
             name: httpd_can_network_connect
             state: true
             persistent: true
+        - name: Ensure status firewalld is registered
+          ansible.builtin.command: systemctl status firewalld
+          register: firewalld_status
+          changed_when: false
+          failed_when: false
+          check_mode: false
+        - name: Ensure when firewalld already already running it is immediately configured to allow minikube dashboard (haproxy to localhost) requests
+          ansible.posix.firewalld:
+            state: enabled
+            port: "{{ item }}"
+            immediate: true
+            permanent: true
+          loop:
+            - 12345/tcp
+          when: firewalld_status.rc == 0
         - name: Ensure haproxy is configured
           ansible.builtin.template:
             src: "{{ item }}.j2"
@@ -178,16 +197,16 @@
           loop:
             - minikube.cfg
           notify: Reload haproxy
-        - name: Ensure haproxy is running
-          ansible.builtin.service:
-            name: haproxy
-            state: started
-            enabled: true
         - name: Set selinux for haproxy
           ansible.posix.seboolean:
             name: haproxy_connect_any
             state: true
             persistent: true
+        - name: Ensure haproxy is running
+          ansible.builtin.service:
+            name: haproxy
+            state: started
+            enabled: true
 
     #
     # helpers
