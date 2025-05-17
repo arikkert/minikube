@@ -1,0 +1,33 @@
+# https://helm.sh/docs/intro/install/
+---
+- name: Ensure helm is installed
+  hosts: minikube
+  become: true
+  tasks:
+
+    - name: Ensure wget is installed
+      ansible.builtin.package:
+        name: wget
+    # There is no rpm repo for for RedHat/Almalinux (though there is for Fedora and apt-based OSses)
+    # the helm (install) script wants /usr/local/bin in path to exit with status 0
+    - name: Ensure helm script is installed # noqa: command-instead-of-module
+      ansible.builtin.shell: wget -qO - https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | PATH=${PATH}:/usr/local/bin bash
+      args:
+        creates: /usr/local/bin/helm
+      register: result
+
+    - name: Debug
+      ansible.builtin.debug:
+        var: result
+
+    - name: Ensure helm version is determined
+      become_user: "{{ minikube_user }}"
+      ansible.builtin.command: /usr/local/bin/helm version
+      register: result
+      check_mode: false
+      changed_when: false
+
+    - name: Ensure helm version is shown
+      ansible.builtin.debug:
+        var: result.stdout_lines
+...

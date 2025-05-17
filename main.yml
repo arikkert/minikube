@@ -5,8 +5,6 @@
   vars:
     _ansible_os_family: 'RedHat'
     _ansible_distribution_major_version: 9
-    minikube_user: kube
-    minikube_group: kube
   tasks:
 
     #

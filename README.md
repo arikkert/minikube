@@ -33,8 +33,6 @@ Requires root access to target hosts.
 Variables
 ---------
 
-Ansible inventory containing definitions for
-3 clusters each with 1 control node and 2 worker nodes.
 The playbooks only refer to the group names and never tot the individual hosts (*bla.mydomain*) so you can choose your own names for the actual hostnames.
 
     [minikube]
@@ -42,6 +40,8 @@ The playbooks only refer to the group names and never tot the individual hosts (
 
 Other vars
 
+*minikube_user* # the user to run the kubectl and helm commands  e.g. kube \
+*minikube_group* # e.g. kube \
 *timezone*  # the timezone on minikube host, e.g. *Europe/Amsterdam*
 
 Testing

@@ -4,9 +4,9 @@ GITLEAKS=@if which gitleaks > /dev/null; then gitleaks detect . --verbose ; fi
 OPTIONS=--diff #--check
 PLAYBOOK=ansible-playbook $(OPTIONS) $@.yml
 
-all: main
+all: main helm
 
-main reinstall:
+main helm reinstall:
 	$(YAMLLINT)
 	$(ANSIBLELINT)
 	$(PLAYBOOK)
