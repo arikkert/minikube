@@ -1,0 +1,5 @@
+# from galaxy
+---
+collections:
+  - name: ansible.posix
+roles: []

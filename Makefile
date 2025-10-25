@@ -6,7 +6,12 @@ PLAYBOOK=ansible-playbook $(OPTIONS) $@.yml
 
 all: main helm
 
-main helm reinstall:
+requirements:
+	$(YAMLLINT)
+	$(ANSIBLELINT)
+	ansible-galaxy install -r $@.yml
+
+main helm reinstall: requirements gitleaks
 	$(YAMLLINT)
 	$(ANSIBLELINT)
 	$(PLAYBOOK)
