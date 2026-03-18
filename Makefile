@@ -4,14 +4,14 @@ GITLEAKS=@if which gitleaks > /dev/null; then gitleaks detect . --verbose ; fi
 OPTIONS=--diff #--check
 PLAYBOOK=ansible-playbook $(OPTIONS) $@.yml
 
-all: main helm
+all: check_vm main helm
 
 requirements:
 	$(YAMLLINT)
 	$(ANSIBLELINT)
 	ansible-galaxy install -r $@.yml
 
-main helm reinstall: requirements gitleaks
+check_vm main helm reinstall: requirements gitleaks
 	$(YAMLLINT)
 	$(ANSIBLELINT)
 	$(PLAYBOOK)

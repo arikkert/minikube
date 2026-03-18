@@ -1,0 +1,34 @@
+---
+- name: Ensure minikube VM is checked
+  hosts: minikube
+  become: true
+
+  tasks:
+
+    - name: Debug
+      ansible.builtin.debug:
+        msg:
+          - "ansible_distribution: {{ ansible_distribution }}"
+          - "ansible_distribution_major_version: {{ ansible_distribution_major_version }}"
+
+    - name: Assert target OS
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == _ansible_distribution
+          - ansible_distribution_major_version | int >= _min_ansible_distribution_major_version
+        fail_msg: "Playbook only suitable for OS distribution {{ _ansible_distribution }} with major version >= {{ _min_ansible_distribution_major_version }}"
+        success_msg: "Yes, OS is fine"
+
+    - name: Debug
+      ansible.builtin.debug:
+        msg:
+          - "ansible_processor_vcpus: {{ ansible_processor_vcpus }}"
+          - "ansible_memtotal_mb: {{ ansible_memtotal_mb }}"
+
+    - name: Assert
+      ansible.builtin.assert:
+        that:
+          - ansible_processor_vcpus | int >= 4
+          - ansible_memtotal_mb | int >= 7000
+
+...

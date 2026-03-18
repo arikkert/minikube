@@ -2,10 +2,16 @@
 [Unit]
 Description=Kickoff Minikube Cluster
 After=docker.service
+Wants=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/minikube start --cpus=4 --memory=6g --addons=ingress
+ExecStart=/usr/local/bin/minikube start \
+	--driver=docker
+	--cpus=2
+	--memory=4g
+	--addons=ingress
+	--wait=true
 RemainAfterExit=true
 ExecStop=/usr/local/bin/minikube stop
 StandardOutput=journal

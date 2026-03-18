@@ -1,8 +1,9 @@
 playbook documentation
 ======================
 
-Playbooks to install and configure minikube on *AlmaLinux 9* hosts
+Playbooks to install and configure minikube on *AlmaLinux 10* hosts
 (tested on Vagrant box https://portal.cloud.hashicorp.com/vagrant/discover/almalinux/9)
+Also tested on AlmaLinux 10.1
 
 It will:
 - check if the hosts fullfill the prereq
@@ -27,7 +28,7 @@ Requirements
 ------------
 
 Deploy host has **make**, **ansible** and **ansible-galaxy** installed.
-Target hosts has *RedHat 9* installed.
+Target hosts has *RedHat 10* installed.
 Requires root access to target hosts.
 
 Variables
@@ -42,6 +43,8 @@ Other vars
 
 *minikube_user* # the user to run the kubectl and helm commands  e.g. kube \
 *minikube_group* # e.g. kube \
+*_ansible_distribution: 'AlmaLinux' \
+*_min_ansible_distribution_major_version: 9
 *timezone*  # the timezone on minikube host, e.g. *Europe/Amsterdam*
 
 Testing

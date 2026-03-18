@@ -2,23 +2,12 @@
 - name: Ensure Almalinux 9 host serves minikube
   hosts: minikube
   become: true
-  vars:
-    _ansible_os_family: 'RedHat'
-    _ansible_distribution_major_version: 9
   tasks:
 
     #
     # https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/
     # kubectl
     #
-
-    - name: Check target OS
-      ansible.builtin.assert:
-        that:
-          - ansible_os_family ==  _ansible_os_family
-          - ansible_distribution_major_version | int == _ansible_distribution_major_version
-        fail_msg: "Playbook only suitable for OS family {{ _ansible_os_family }} major version {{ _ansible_distribution_major_version }}"
-        success_msg: "Yes, OS is fine"
 
     - name: Set TZ {{ timezone }}
       community.general.timezone:
@@ -76,6 +65,9 @@
         - name: Ensure unprivileged user to run minikube [{{ minikube_user }}] is present # noqa: name[template]
           ansible.builtin.user:
             name: "{{ minikube_user }}"
+        - name: Ensure become_user dependency is present
+          ansible.builtin.package:
+            name: acl
         - name: Ensure original shell startup scripts for minikube_user are saved
           become: true
           become_user: "{{ minikube_user }}"
@@ -129,6 +121,7 @@
           ansible.builtin.package:
             name: podman
             state: present
+          when: false
         - name: Ensure system start file is present, custom created running under user [{{ minikube_user }}]
           ansible.builtin.copy:
             src: "{{ item }}"
@@ -214,7 +207,7 @@
       ansible.builtin.package:
         name:
           - vim
-          - mlocate
+          - plocate
         state: present
     - name: Ensure extra scripts directory is present
       ansible.builtin.file:
