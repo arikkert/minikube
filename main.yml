@@ -1,5 +1,5 @@
 ---
-- name: Ensure Almalinux 9 host serves minikube
+- name: Ensure Almalinux 10 host serves minikube
   hosts: minikube
   become: true
   tasks:
