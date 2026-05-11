@@ -21,6 +21,7 @@
         var: result
 
     - name: Ensure helm version is determined
+      become: true
       become_user: "{{ minikube_user }}"
       ansible.builtin.command: /usr/local/bin/helm version
       register: result

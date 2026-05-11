@@ -1,4 +1,5 @@
 # File managed by Ansible
+# Calico is chosen as network plugin cause it supports network policies which are tested in CKAD
 [Unit]
 Description=Kickoff Minikube Cluster
 After=docker.service
@@ -7,10 +8,12 @@ Wants=docker.service
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/minikube start \
-	--driver=docker
-	--cpus=2
-	--memory=4g
-	--addons=ingress
+	--network-plugin=cni \
+	--cni=calico \
+	--driver=docker \
+	--cpus=2 \
+	--memory=4g \
+	--addons=ingress \
 	--wait=true
 RemainAfterExit=true
 ExecStop=/usr/local/bin/minikube stop
